@@ -1,0 +1,166 @@
+<!DOCTYPE html><html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>얇은 풍선 실험실</title>
+<meta name="description" content="풍선 고무의 일부를 얇게 만들고 바람을 넣어, 얇은 곳이 왜 먼저 부풀고 터지는지 3D로 실험하는 시뮬레이터">
+<meta property="og:title" content="얇은 풍선 실험실">
+<meta property="og:description" content="얇은 고무는 왜 먼저 부풀고 터질까? 60개 구역을 골라 직접 불어 보세요.">
+<meta property="og:image" content="https://app.jehyunlee.dev/balloon/og-image.jpg">
+<meta property="og:url" content="https://app.jehyunlee.dev/balloon/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Jua&amp;family=Gothic+A1:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#e9eef4; --grid:#d5dde8; --ink:#16233a; --muted:#5a6880;
+  --panel:#f7f9fc; --line:#cbd5e2; --chip:#ffffffd9;
+  --normal:#2f6bff; --thin:#ffb21e; --danger:#e5384f; --btn:#ffffff; --btnInk:#16233a;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1624; --grid:#1a2436; --ink:#e8eef8; --muted:#94a3bb;
+    --panel:#141d2e; --line:#26334a; --chip:#141d2ed9; --btn:#1c273b; --btnInk:#e8eef8;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1624; --grid:#1a2436; --ink:#e8eef8; --muted:#94a3bb;
+  --panel:#141d2e; --line:#26334a; --chip:#141d2ed9; --btn:#1c273b; --btnInk:#e8eef8;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Gothic A1",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  -webkit-tap-highlight-color:transparent}
+.app{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 360px;grid-template-rows:minmax(0,1fr)}
+.stage{position:relative;min-height:0;overflow:hidden;
+  background-color:var(--bg);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:28px 28px;background-position:center}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none}
+.title{position:absolute;left:18px;top:14px;pointer-events:none}
+.title h1{font-family:"Jua","Gothic A1",sans-serif;font-weight:400;font-size:clamp(26px,4vw,40px);line-height:1;margin:0;letter-spacing:-.5px}
+.title p{margin:6px 0 0;color:var(--muted);font-size:13px}
+.readout{position:absolute;right:14px;top:14px;display:flex;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:none}
+.chip{background:var(--chip);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid var(--line);
+  border-radius:999px;padding:5px 12px;font-size:13px;white-space:nowrap}
+.chip b{font-weight:700;font-variant-numeric:tabular-nums}
+.chip.state{font-weight:700}
+.chip.state.warn{background:var(--danger);color:#fff;border-color:transparent}
+.chip.state.bulge{background:var(--thin);color:#2a1a00;border-color:transparent}
+.hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:var(--ink);color:var(--bg);
+  font-size:13px;padding:8px 14px;border-radius:999px;white-space:nowrap;transition:opacity .5s;pointer-events:none}
+.hint.gone{opacity:0}
+.burst{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px}
+.burst.on{display:flex}
+.burst .pop{font-family:"Jua",sans-serif;font-size:clamp(64px,14vw,120px);line-height:1;color:var(--danger);
+  animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+.burst p{margin:0;max-width:30ch;color:var(--ink);font-size:15px;line-height:1.5;background:var(--chip);padding:8px 14px;border-radius:12px}
+@keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.burst .pop{animation:none}}
+
+.panel{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:18px 18px 22px;display:flex;flex-direction:column;gap:18px}
+.group h2{font-size:14px;font-weight:700;margin:0 0 8px;display:flex;justify-content:space-between;align-items:baseline}
+.group h2 output{font-weight:700;font-variant-numeric:tabular-nums;color:var(--normal)}
+.group h2 output.t{color:#c98200}
+input[type=range]{width:100%;accent-color:var(--normal);height:28px;margin:0}
+input[type=range].thin{accent-color:var(--thin)}
+.sub{font-size:12px;color:var(--muted);margin:4px 0 0;line-height:1.45}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;font-size:14px;font-weight:500;border:1px solid var(--line);background:var(--btn);color:var(--btnInk);
+  padding:9px 13px;border-radius:12px;cursor:pointer;min-height:40px}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--normal);outline-offset:2px}
+button.primary{background:var(--normal);color:#fff;border-color:transparent;font-weight:700}
+button.primary.playing{background:var(--danger)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.legend{display:flex;gap:16px;font-size:13px;align-items:center}
+.sw{display:inline-block;width:16px;height:16px;border-radius:50%;vertical-align:-3px;margin-right:6px;border:1px solid #0002}
+details{border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:700;font-size:14px}
+details p{font-size:13.5px;line-height:1.65;color:var(--ink);margin:10px 0 0;max-width:60ch}
+details p.small{color:var(--muted);font-size:12px}
+
+@media (max-width:760px){
+  .app{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+  .panel{border-left:0;border-top:1px solid var(--line);max-height:48vh;padding:14px 14px 16px;gap:14px}
+  .title{left:14px;top:12px}
+  .title p{display:none}
+  .readout{right:10px;top:10px}
+  .chip{font-size:12px;padding:4px 10px}
+  .presets{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .presets button{flex:0 0 auto}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="title">
+      <h1>얇은 풍선 실험실</h1>
+      <p>60개 구역 중 골라서 고무를 얇게 만든 뒤 바람을 넣어 보세요</p>
+    </div>
+    <div class="readout">
+      <div class="chip state" id="state">바람 없음</div>
+      <div class="chip">얇은 구역 <b id="thinCount">0</b>/60</div>
+      <div class="chip">가장 많이 늘어난 곳 <b id="maxStretch">×1.00</b></div>
+    </div>
+    <div class="hint" id="hint">구역을 탭하면 얇게 ↔ 정상 · 드래그하면 회전</div>
+    <div class="burst" id="burst">
+      <div class="pop">펑!</div>
+      <p id="burstMsg">얇은 곳이 버티지 못하고 먼저 터졌어요.</p>
+      <button class="primary" id="resetBurst">다시 불기</button>
+    </div>
+  </div>
+
+  <aside class="panel">
+    <div class="group">
+      <h2>바람 넣기 <output id="infOut">0%</output></h2>
+      <input type="range" id="inflate" min="0" max="100" value="0" step="0.5" aria-label="바람 넣기">
+      <div class="row" style="margin-top:8px">
+        <button class="primary" id="auto">자동으로 불기</button>
+        <button id="deflate">바람 빼기</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>얇은 곳의 두께 <output class="t" id="thkOut">정상의 60%</output></h2>
+      <input type="range" class="thin" id="thickness" min="30" max="95" value="60" step="5" aria-label="얇은 곳의 두께">
+      <p class="sub">숫자가 작을수록 더 얇은 고무예요.</p>
+    </div>
+
+    <div class="group">
+      <h2>얇은 곳 빠르게 고르기</h2>
+      <div class="row presets">
+        <button id="pOne">보이는 쪽 한 칸</button>
+        <button id="pSide">보이는 쪽 면 전체</button>
+        <button id="pBand">허리 띠</button>
+        <button id="pRandom">무작위 6칸</button>
+        <button id="pClear">모두 정상</button>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><span class="sw" style="background:var(--normal)"></span>정상 두께</span>
+      <span><span class="sw" style="background:var(--thin)"></span>얇은 고무</span>
+    </div>
+
+    <details>
+      <summary>왜 얇은 곳이 튀어나올까?</summary>
+      <p>풍선 속 공기는 모든 방향으로 똑같은 압력으로 고무를 밀어요. 두꺼운 고무는 그 힘을 잘 버티지만, 얇은 고무는 버티는 힘이 약해서 같은 압력에도 더 많이 늘어나요.</p>
+      <p>게다가 고무는 늘어날수록 더 얇아져서 더 쉽게 늘어나요. 그래서 바람을 넣을수록 얇은 곳만 점점 더 빠르게 부풀어 혹처럼 튀어나오고, 결국 가장 먼저 터지게 돼요.</p>
+      <p>얇은 구역을 한 칸만 골랐을 때와 여러 칸을 붙여서 골랐을 때를 비교해 보세요. 주변의 두꺼운 고무가 붙잡아 주기 때문에 작은 얇은 곳은 덜 튀어나와요.</p>
+      <p class="small">이 시뮬레이터는 원리를 보여 주기 위한 단순화된 모형이라 실제 풍선의 정확한 수치와는 달라요.</p>
+    </details>
+  </aside>
+</div>
+
+<script src="js/vendor/three.min.js"></script>
+<script src="js/vendor/OrbitControls.js"></script>
+<script src="js/vendor/BufferGeometryUtils.js"></script>
+<script src="js/app.js"></script>
+
+
+</body></html>
